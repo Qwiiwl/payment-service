@@ -1,8 +1,10 @@
 package uzumtech.paymentservice.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import uzumtech.paymentservice.dto.TransactionEvent;
 import uzumtech.paymentservice.dto.TransferResponse;
 import uzumtech.paymentservice.entity.CardEntity;
 import uzumtech.paymentservice.entity.TransactionEntity;
@@ -12,6 +14,7 @@ import uzumtech.paymentservice.entity.enums.TransactionType;
 import uzumtech.paymentservice.exception.CardInactiveException;
 import uzumtech.paymentservice.exception.CardNotFoundException;
 import uzumtech.paymentservice.exception.InsufficientFundsException;
+import uzumtech.paymentservice.mapper.TransactionEventMapper;
 import uzumtech.paymentservice.repository.CardRepository;
 import uzumtech.paymentservice.repository.TransactionRepository;
 
@@ -25,27 +28,20 @@ public class TransferService {
 
     private final CardRepository cardRepository;
     private final TransactionRepository transactionRepository;
+    private final KafkaTemplate<String, TransactionEvent> kafkaTemplate;
+
+    private static final String TOPIC = "transactions";
 
     @Transactional
     public TransferResponse transfer(String fromCardNumber, String toCardNumber, BigDecimal amount) {
 
-        // Создаём объект транзакции для успешного перевода
-        TransactionEntity transaction = TransactionEntity.builder()
-                .transactionId(UUID.randomUUID())
-                .type(TransactionType.TRANSFER)
-                .sourceIdentifier(fromCardNumber)
-                .destinationIdentifier(toCardNumber)
-                .amount(amount)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        // 1️⃣ Найти карты
+        //Найти карты
         CardEntity fromCard = cardRepository.findByCardNumber(fromCardNumber)
                 .orElseThrow(() -> new CardNotFoundException("Source card not found"));
         CardEntity toCard = cardRepository.findByCardNumber(toCardNumber)
                 .orElseThrow(() -> new CardNotFoundException("Destination card not found"));
 
-        // 2️⃣ Проверка активности
+        //Проверка активности карт
         if (fromCard.getStatus() != CardStatus.ACTIVE) {
             throw new CardInactiveException("Source card is not active");
         }
@@ -53,12 +49,12 @@ public class TransferService {
             throw new CardInactiveException("Destination card is not active");
         }
 
-        // 3️⃣ Проверка баланса
+        //Проверка баланса
         if (fromCard.getBalance().compareTo(amount) < 0) {
             throw new InsufficientFundsException("Insufficient funds on source card");
         }
 
-        // 4️⃣ Списание и зачисление
+        //Списание и зачисление
         fromCard.setBalance(fromCard.getBalance().subtract(amount));
         toCard.setBalance(toCard.getBalance().add(amount));
         fromCard.setUpdatedAt(LocalDateTime.now());
@@ -66,11 +62,32 @@ public class TransferService {
         cardRepository.save(fromCard);
         cardRepository.save(toCard);
 
-        // 5️⃣ Сохраняем успешную транзакцию
-        transaction.setStatus(TransactionStatus.SUCCESS);
+        //Создание транзакции
+        TransactionEntity transaction = TransactionEntity.builder()
+                .transactionId(UUID.randomUUID())
+                .type(TransactionType.TRANSFER)
+                .sourceIdentifier(fromCardNumber)
+                .destinationIdentifier(toCardNumber)
+                .amount(amount)
+                .status(TransactionStatus.SUCCESS)
+                .createdAt(LocalDateTime.now())
+                .build();
         transactionRepository.save(transaction);
 
-        // 6️⃣ Возвращаем TransferResponse DTO
+        //Создание и отправка события в Kafka через маппер
+        /*
+
+        TransactionEvent event = TransactionEventMapper.toEvent(transaction);
+        kafkaTemplate.send(TOPIC, event)
+                .thenAccept(result -> System.out.println("Sent transfer event to Kafka: " + event))
+                .exceptionally(ex -> {
+                    System.err.println("Failed to send transfer event: " + ex.getMessage());
+                    return null;
+                });
+
+         */
+
+        //Возврат TransferResponse DTO
         return TransferResponse.builder()
                 .transactionId(transaction.getTransactionId())
                 .fromCard(fromCardNumber)

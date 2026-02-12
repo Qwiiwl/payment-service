@@ -9,9 +9,7 @@ import java.time.LocalDateTime;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /**
-     * Формат ответа для ошибок
-     */
+    //Формат ответа для ошибок
     public record ErrorResponse(
             String message,
             int status,

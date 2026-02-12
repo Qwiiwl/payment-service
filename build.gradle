@@ -42,7 +42,6 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
-
     //MapStruct
     implementation "org.mapstruct:mapstruct:${mapstructVersion}"
     annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
@@ -53,12 +52,15 @@ dependencies {
         exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
     }
 
-
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'com.h2database:h2:2.2.222'
 
+    //Integration Tests
+    testImplementation 'org.springframework.kafka:spring-kafka-test'  // Embedded Kafka
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'       // JUnit 5
+    testImplementation 'org.assertj:assertj-core:3.24.2'              // AssertJ для assertThat
 }
-
 tasks.named('test') {
     useJUnitPlatform()
     maxParallelForks = 1

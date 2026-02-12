@@ -22,15 +22,7 @@ public class TransferController {
     private final TransferService transferService;
     private final CardRepository cardRepository;
 
-    /**
-     * POST /transfer
-     * Тело запроса JSON:
-     * {
-     *   "fromCard": "1234567890123456",
-     *   "toCard": "6543210987654321",
-     *   "amount": 100.50
-     * }
-     */
+
     @PostMapping
     public ResponseEntity<TransferResponse> transfer(@RequestBody TransferRequest request) {
         // Проверка суммы
@@ -48,18 +40,13 @@ public class TransferController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * GET для просмотра всех карт (тестовый endpoint)
-     */
+    //GET для просмотра всех карт
     @GetMapping("/cards/test")
     public List<CardEntity> getAllCards() {
         return cardRepository.findAll();
     }
 
-    /**
-     * Временный endpoint для создания тестовой карты
-     * Пример запроса: POST /transfer/cards/test?number=1111222233334444&balance=1000
-     */
+    //Временный endpoint для создания тестовой карты
     @PostMapping("/cards/test")
     public CardEntity createTestCard(@RequestParam String number, @RequestParam BigDecimal balance) {
         CardEntity card = CardEntity.builder()

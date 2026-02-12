@@ -26,7 +26,7 @@ public class CardEntity {
     @Column(nullable = false)
     private BigDecimal balance;
 
-    @Enumerated(EnumType.STRING)  // <- очень важно для ENUM PostgreSQL
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CardStatus status;
 

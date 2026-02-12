@@ -1,11 +1,33 @@
 spring:
+  main:
+    allow-bean-definition-overriding: true
+
   datasource:
-    url: jdbc:h2:mem:testdb
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
+
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
-      ddl-auto: none
-    show-sql: false
+      ddl-auto: create-drop   # таблицы создаются и удаляются после теста
+    show-sql: true
+
+kafka:
+  bootstrap-servers: localhost:9092
+  producer:
+    acks: all
+    retries: 3
+    properties:
+      linger.ms: 5
+  consumer:
+    group-id: payment-service-test-group
+    auto-offset-reset: earliest
+
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+    org.springframework.kafka: INFO

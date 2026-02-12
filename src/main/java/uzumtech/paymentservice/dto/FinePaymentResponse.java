@@ -23,7 +23,7 @@ public class FinePaymentResponse {
         this.createdAt = createdAt;
     }
 
-    // Геттеры
+    //Геттеры
     public UUID getTransactionId() { return transactionId; }
     public String getFromCard() { return fromCard; }
     public String getFineNumber() { return fineNumber; }

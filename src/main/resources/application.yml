@@ -7,23 +7,35 @@ spring:
 
   datasource:
     url: jdbc:postgresql://localhost:5432/payment_db
-    username: payment_user
-    password: payment_pass
+    username: arvi
+    password: 123456
     driver-class-name: org.postgresql.Driver
 
   jpa:
-    open-in-view: false
     hibernate:
-      ddl-auto: create-drop   # ВРЕМЕННО
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
+      ddl-auto: validate
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
 
   kafka:
     bootstrap-servers: localhost:9092
+    producer:
+      acks: all
+      retries: 3
+      properties:
+        linger.ms: 5
+    consumer:
+      group-id: payment-service-group
+      auto-offset-reset: earliest
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,loggers
 
 logging:
   level:
-    org.hibernate.SQL: debug
-    org.hibernate.type.descriptor.sql: trace
+    root: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+    org.springframework.kafka: INFO

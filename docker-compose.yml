@@ -1,18 +1,17 @@
-version: "3.9"
+version: '3.9'
 
 services:
   postgres:
     image: postgres:16
     container_name: payment-postgres
-    restart: unless-stopped
     environment:
       POSTGRES_DB: payment_db
-      POSTGRES_USER: payment_user
-      POSTGRES_PASSWORD: payment_pass
+      POSTGRES_USER: arvi
+      POSTGRES_PASSWORD: 123456
     ports:
       - "5432:5432"
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  pg_data:
+  postgres_data:

@@ -3,10 +3,10 @@ package uzumtech.paymentservice.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import uzumtech.paymentservice.dto.TransferRequest;
-import uzumtech.paymentservice.dto.TransferResponse;
+import uzumtech.paymentservice.dto.request.TransferRequest;
+import uzumtech.paymentservice.dto.response.TransferResponse;
 import uzumtech.paymentservice.entity.CardEntity;
-import uzumtech.paymentservice.entity.enums.CardStatus;
+import uzumtech.paymentservice.constant.enums.CardStatus;
 import uzumtech.paymentservice.service.TransferService;
 import uzumtech.paymentservice.repository.CardRepository;
 
@@ -26,15 +26,15 @@ public class TransferController {
     @PostMapping
     public ResponseEntity<TransferResponse> transfer(@RequestBody TransferRequest request) {
         // Проверка суммы
-        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+        if (request.amount() == null || request.amount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount must be greater than zero");
         }
 
         // Вызов сервиса
         TransferResponse response = transferService.transfer(
-                request.getFromCard(),
-                request.getToCard(),
-                request.getAmount()
+                request.fromCard(),
+                request.toCard(),
+                request.amount()
         );
 
         return ResponseEntity.ok(response);

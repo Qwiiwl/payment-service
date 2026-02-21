@@ -1,4 +1,4 @@
-package uzumtech.paymentservice.entity.enums;
+package uzumtech.paymentservice.constant.enums;
 
 public enum CardStatus {
     ACTIVE,

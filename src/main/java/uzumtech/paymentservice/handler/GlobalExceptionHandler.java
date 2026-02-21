@@ -1,8 +1,12 @@
-package uzumtech.paymentservice.exception;
+package uzumtech.paymentservice.handler;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import uzumtech.paymentservice.exception.CardInactiveException;
+import uzumtech.paymentservice.exception.CardNotFoundException;
+import uzumtech.paymentservice.exception.FineAlreadyPaidException;
+import uzumtech.paymentservice.exception.InsufficientFundsException;
 
 import java.time.LocalDateTime;
 

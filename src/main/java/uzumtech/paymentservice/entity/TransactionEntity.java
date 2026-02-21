@@ -2,8 +2,8 @@ package uzumtech.paymentservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import uzumtech.paymentservice.entity.enums.TransactionStatus;
-import uzumtech.paymentservice.entity.enums.TransactionType;
+import uzumtech.paymentservice.constant.enums.TransactionStatus;
+import uzumtech.paymentservice.constant.enums.TransactionType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

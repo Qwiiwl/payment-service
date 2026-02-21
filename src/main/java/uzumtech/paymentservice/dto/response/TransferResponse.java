@@ -1,4 +1,4 @@
-package uzumtech.paymentservice.dto;
+package uzumtech.paymentservice.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

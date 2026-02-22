@@ -35,4 +35,8 @@ public class CardEntity {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private BigDecimal reservedBalance = BigDecimal.ZERO;
 }

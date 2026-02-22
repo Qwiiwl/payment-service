@@ -20,12 +20,11 @@ import java.time.LocalDateTime;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final BCryptPasswordEncoder passwordEncoder; // ✅ теперь инжектится
 
     @Override
     @Transactional
     public UserResponse register(UserRegisterRequest request) {
-
         if (userRepository.existsByPhoneNumber(request.phoneNumber())) {
             throw new UserAlreadyExistsException("User already exists");
         }
@@ -39,17 +38,11 @@ public class UserServiceImpl implements UserService {
 
         userRepository.save(user);
 
-        return new UserResponse(
-                user.getId(),
-                user.getFullName(),
-                user.getPhoneNumber(),
-                user.getCreatedAt()
-        );
+        return new UserResponse(user.getId(), user.getFullName(), user.getPhoneNumber(), user.getCreatedAt());
     }
 
     @Override
     public UserResponse login(UserLoginRequest request) {
-
         UserEntity user = userRepository.findByPhoneNumber(request.phoneNumber())
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid phone or password"));
 
@@ -57,11 +50,6 @@ public class UserServiceImpl implements UserService {
             throw new InvalidCredentialsException("Invalid phone or password");
         }
 
-        return new UserResponse(
-                user.getId(),
-                user.getFullName(),
-                user.getPhoneNumber(),
-                user.getCreatedAt()
-        );
+        return new UserResponse(user.getId(), user.getFullName(), user.getPhoneNumber(), user.getCreatedAt());
     }
 }

@@ -54,9 +54,21 @@ public class GlobalExceptionHandler {
         return buildResponse(ex.getMessage(), HttpStatus.CONFLICT);
     }
 
+
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleUserAlreadyExists(UserAlreadyExistsException ex) {
+        return buildResponse(ex.getMessage(), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException ex) {
+        return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
     // Общий fallback
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
+        ex.printStackTrace(); // ✅ покажет реальную причину в консоли
         return buildResponse("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 

@@ -26,9 +26,8 @@ public class TransactionEntity {
     private UUID transactionId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "type", columnDefinition = "transaction_type")
+    @Column(name = "type", nullable = false, length = 50)
     private TransactionType type;
-
 
     @Column(name = "source_identifier", nullable = false, length = 50)
     private String sourceIdentifier;
@@ -40,7 +39,7 @@ public class TransactionEntity {
     private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, length = 20)
     private TransactionStatus status;
 
     @Column(name = "error_message")
@@ -48,4 +47,18 @@ public class TransactionEntity {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    void prePersist() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (updatedAt == null) updatedAt = createdAt;
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

@@ -3,17 +3,14 @@ package uzumtech.paymentservice.handler;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import uzumtech.paymentservice.exception.CardInactiveException;
-import uzumtech.paymentservice.exception.CardNotFoundException;
-import uzumtech.paymentservice.exception.FineAlreadyPaidException;
-import uzumtech.paymentservice.exception.InsufficientFundsException;
+import uzumtech.paymentservice.exception.*;
 
 import java.time.LocalDateTime;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    //Формат ответа для ошибок
+    // Единый формат ответа для всех ошибок
     public record ErrorResponse(
             String message,
             int status,
@@ -22,35 +19,55 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(CardNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleCardNotFound(CardNotFoundException ex) {
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND.value(), LocalDateTime.now()));
+        return buildResponse(ex.getMessage(), HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(CardInactiveException.class)
     public ResponseEntity<ErrorResponse> handleCardInactive(CardInactiveException ex) {
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST.value(), LocalDateTime.now()));
+        return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(InsufficientFundsException.class)
     public ResponseEntity<ErrorResponse> handleInsufficientFunds(InsufficientFundsException ex) {
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST.value(), LocalDateTime.now()));
-    }
-
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR.value(), LocalDateTime.now()));
+        return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(FineAlreadyPaidException.class)
-    public ResponseEntity<String> handleFineAlreadyPaid(FineAlreadyPaidException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleFineAlreadyPaid(FineAlreadyPaidException ex) {
+        return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
+    // 🔐 OTP exceptions
+
+    @ExceptionHandler(InvalidOtpException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidOtp(InvalidOtpException ex) {
+        return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(OtpExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleOtpExpired(OtpExpiredException ex) {
+        return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(CardAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleCardAlreadyExists(CardAlreadyExistsException ex) {
+        return buildResponse(ex.getMessage(), HttpStatus.CONFLICT);
+    }
+
+    // Общий fallback
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
+        return buildResponse("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    // Унифицированный builder ответа
+    private ResponseEntity<ErrorResponse> buildResponse(String message, HttpStatus status) {
+        return ResponseEntity
+                .status(status)
+                .body(new ErrorResponse(
+                        message,
+                        status.value(),
+                        LocalDateTime.now()
+                ));
+    }
 }

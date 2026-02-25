@@ -29,17 +29,12 @@ public class CardServiceImpl implements uzumtech.paymentservice.service.CardServ
 
     private static final int OTP_EXPIRATION_MINUTES = 3;
 
-    /**
-     * Шаг 1 — отправка OTP
-     */
     @Override
     @Transactional
     public CardAddResponse initiateCardAdding(CardAddRequest request) {
 
         // Проверка что карта уже не существует
-        if (cardRepository.findByCardNumber(request.cardNumber()).isPresent()) {
-            throw new CardAlreadyExistsException("Card already exists");
-        }
+
 
         // Генерация 6-значного OTP
         String otpCode = generateOtp();
@@ -62,9 +57,7 @@ public class CardServiceImpl implements uzumtech.paymentservice.service.CardServ
         return new CardAddResponse("OTP_SENT");
     }
 
-    /**
-     * Шаг 2 — подтверждение OTP и создание карты
-     */
+
     @Override
     @Transactional
     public CardConfirmResponse confirmCardAdding(CardConfirmRequest request) {

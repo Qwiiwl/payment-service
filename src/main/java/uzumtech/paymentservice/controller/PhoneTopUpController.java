@@ -19,11 +19,6 @@ public class PhoneTopUpController {
     @PostMapping
     public ResponseEntity<PhoneTopUpResponse> topUp(@RequestBody PhoneTopUpRequest request) {
 
-        // Проверка корректности суммы
-        if (request.amount() == null || request.amount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
-        }
-
         // Вызов сервиса
         PhoneTopUpResponse response = phoneTopUpService.topUp(request);
 

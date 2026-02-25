@@ -11,7 +11,7 @@ import uzumtech.paymentservice.service.UserService;
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
-public class UserController {
+public class UserAuthController {
 
     private final UserService userService;
 

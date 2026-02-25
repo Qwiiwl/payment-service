@@ -41,7 +41,7 @@ public class TransactionStatusServiceImpl implements TransactionStatusService {
                 .build();
 
         transactionRepository.save(tx);
-        return txId; // ✅ тут транзакция завершится и INSERT будет виден всем
+        return txId; //тут транзакция завершится и INSERT будет виден всем
     }
 
     @Override

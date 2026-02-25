@@ -1,6 +1,9 @@
 package uzumtech.paymentservice.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public record CardAddRequest(
-        Long userId,
-        String cardNumber
+        @NotNull Long userId,
+        @NotBlank String cardNumber
 ) {}

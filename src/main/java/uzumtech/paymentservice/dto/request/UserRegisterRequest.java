@@ -1,7 +1,9 @@
 package uzumtech.paymentservice.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
+
 public record UserRegisterRequest(
-        String fullName,
-        String phoneNumber,
-        String password
+        @NotBlank String fullName,
+        @NotBlank String phoneNumber,
+        @NotBlank String password
 ) {}

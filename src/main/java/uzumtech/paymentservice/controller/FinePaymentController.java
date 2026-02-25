@@ -19,9 +19,6 @@ public class FinePaymentController {
     @PostMapping
     public ResponseEntity<FinePaymentResponse> payFine(@RequestBody FinePaymentRequest request) {
 
-        if (request.amount() == null || request.amount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
-        }
 
         FinePaymentResponse response = finePaymentService.payFine(request);
         return ResponseEntity.ok(response);

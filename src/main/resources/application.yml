@@ -42,9 +42,17 @@ management:
       exposure:
         include: health,info,metrics,loggers
 
+
+notification:
+  baseUrl: http://217.29.121.129:80
+  timeoutMs: 3000
+
+
 logging:
   level:
     root: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.springframework.kafka: INFO
+
+

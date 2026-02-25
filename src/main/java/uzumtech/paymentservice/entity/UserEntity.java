@@ -25,7 +25,7 @@ public class UserEntity {
     private String phoneNumber;
 
     @Column(nullable = false)
-    private String password; // хранится в зашифрованном виде
+    private String password; //хранится в зашифрованном виде
 
     @Column(nullable = false)
     private LocalDateTime createdAt;

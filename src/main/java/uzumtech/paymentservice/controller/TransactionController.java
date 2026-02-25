@@ -18,10 +18,7 @@ public class TransactionController {
 
     private final TransactionService transactionService;
 
-    /**
-     * Пример:
-     * GET /transactions/history?cardNumber=8600...&page=0&size=10&type=TRANSFER&sort=createdAt,desc
-     */
+
     @GetMapping("/history")
     public ResponseEntity<Page<TransactionHistoryResponse>> historyByCard(
             @RequestParam String cardNumber,

@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder; // ✅ теперь инжектится
+    private final BCryptPasswordEncoder passwordEncoder;
 
     @Override
     @Transactional

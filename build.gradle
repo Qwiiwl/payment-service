@@ -10,7 +10,7 @@ description = 'payment-service'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
@@ -56,11 +56,15 @@ dependencies {
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'org.testcontainers:postgresql'
     testImplementation 'com.h2database:h2:2.2.222'
+    testImplementation 'org.springframework.kafka:spring-kafka-test'  // Embedded Kafka
 
     //Integration Tests
-    testImplementation 'org.springframework.kafka:spring-kafka-test'  // Embedded Kafka
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'       // JUnit 5
     testImplementation 'org.assertj:assertj-core:3.24.2'              // AssertJ для assertThat
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+
+
 }
 tasks.named('test') {
     useJUnitPlatform()

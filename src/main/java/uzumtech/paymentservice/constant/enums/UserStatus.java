@@ -1,7 +1,6 @@
 package uzumtech.paymentservice.constant.enums;
 
-public enum CardStatus {
+public enum UserStatus {
     ACTIVE,
-    BLOCKED,
-    EXPIRED
+    BLOCKED
 }

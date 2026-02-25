@@ -13,7 +13,7 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
 
     Optional<TransactionEntity> findByTransactionId(UUID transactionId);
 
-    // История по карте (как source или destination), без фильтра по типу
+    // История по карте, без фильтра по типу
     Page<TransactionEntity> findBySourceIdentifierOrDestinationIdentifier(
             String sourceIdentifier,
             String destinationIdentifier,

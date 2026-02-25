@@ -37,7 +37,7 @@ public class GlobalExceptionHandler {
         return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
-    // 🔐 OTP exceptions
+    // OTP exceptions
 
     @ExceptionHandler(InvalidOtpException.class)
     public ResponseEntity<ErrorResponse> handleInvalidOtp(InvalidOtpException ex) {
@@ -65,14 +65,14 @@ public class GlobalExceptionHandler {
         return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
-    // Общий fallback
+    // Общий фолбек
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
-        ex.printStackTrace(); // ✅ покажет реальную причину в консоли
+        ex.printStackTrace(); //отладчик
         return buildResponse("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    // Унифицированный builder ответа
+    // Унифицированный билдер ответа
     private ResponseEntity<ErrorResponse> buildResponse(String message, HttpStatus status) {
         return ResponseEntity
                 .status(status)

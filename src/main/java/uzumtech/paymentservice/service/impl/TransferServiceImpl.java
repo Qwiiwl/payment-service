@@ -29,18 +29,9 @@ public class TransferServiceImpl implements TransferService {
     @Transactional
     public TransferResponse transfer(String fromCardNumber, String toCardNumber, BigDecimal amount) {
 
-        // 0) базовая валидация
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
-        }
-        if (fromCardNumber == null || toCardNumber == null) {
-            throw new IllegalArgumentException("Card numbers must not be null");
-        }
-        if (fromCardNumber.equals(toCardNumber)) {
-            throw new IllegalArgumentException("fromCard and toCard must be different");
-        }
 
-        // ✅ 1) Создаем PENDING В ОТДЕЛЬНОЙ транзакции (REQUIRES_NEW) — чтобы запись точно попала в БД
+
+        //Создаем PENDING (REQUIRES_NEW) — чтобы запись точно попала в БД
         UUID txId = transactionStatusService.createPending(
                 TransactionType.TRANSFER,
                 fromCardNumber,
@@ -49,7 +40,7 @@ public class TransferServiceImpl implements TransferService {
         );
 
         try {
-            // 2) блокируем обе карты в одном порядке (anti-deadlock)
+            //блокируем обе карты в одном порядке
             String first = fromCardNumber.compareTo(toCardNumber) <= 0 ? fromCardNumber : toCardNumber;
             String second = first.equals(fromCardNumber) ? toCardNumber : fromCardNumber;
 
@@ -61,7 +52,7 @@ public class TransferServiceImpl implements TransferService {
             CardEntity fromCard = fromCardNumber.equals(first) ? firstCard : secondCard;
             CardEntity toCard = toCardNumber.equals(first) ? firstCard : secondCard;
 
-            // 3) проверки статусов
+            //проверки статусов
             if (fromCard.getStatus() != CardStatus.ACTIVE) {
                 throw new CardInactiveException("Source card is not active");
             }
@@ -69,7 +60,7 @@ public class TransferServiceImpl implements TransferService {
                 throw new CardInactiveException("Destination card is not active");
             }
 
-            // 4) HOLD (reserve) + проверка доступного баланса
+            //HOLD + проверка доступного баланса
             BigDecimal reserved = nz(fromCard.getReservedBalance());
             BigDecimal available = fromCard.getBalance().subtract(reserved);
 
@@ -81,7 +72,7 @@ public class TransferServiceImpl implements TransferService {
             fromCard.setUpdatedAt(LocalDateTime.now());
             cardRepository.save(fromCard);
 
-            // 5) COMMIT: списание и начисление
+            //COMMIT: списание и начисление
             fromCard.setBalance(fromCard.getBalance().subtract(amount));
             fromCard.setReservedBalance(fromCard.getReservedBalance().subtract(amount));
             toCard.setBalance(toCard.getBalance().add(amount));
@@ -92,20 +83,20 @@ public class TransferServiceImpl implements TransferService {
             cardRepository.save(fromCard);
             cardRepository.save(toCard);
 
-            // 6) SUCCESS (REQUIRES_NEW)
+            //SUCCESS (REQUIRES_NEW)
             transactionStatusService.markSuccess(txId);
 
-            return TransferResponse.builder()
-                    .transactionId(txId)
-                    .fromCard(fromCardNumber)
-                    .toCard(toCardNumber)
-                    .amount(amount)
-                    .status("SUCCESS")
-                    .createdAt(LocalDateTime.now()) // или читай createdAt из tx если хочешь
-                    .build();
+            return new TransferResponse(
+                    txId,
+                    fromCardNumber,
+                    toCardNumber,
+                    amount,
+                    "SUCCESS",
+                    LocalDateTime.now()
+            );
 
         } catch (RuntimeException ex) {
-            // ✅ FAILED (REQUIRES_NEW) — теперь точно найдёт запись, т.к. PENDING уже закоммичен
+            //FAILED
             transactionStatusService.markFailed(txId, ex.getMessage());
             throw ex;
         }

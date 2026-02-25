@@ -142,7 +142,7 @@ class PhoneTopUpServiceImplTest {
         // when
         PhoneTopUpResponse response = phoneTopUpService.topUp(request);
 
-        // then: карта сохранилась с новым балансом
+        // карта сохранилась с новым балансом
         verify(cardRepository).save(cardCaptor.capture());
         CardEntity savedCard = cardCaptor.getValue();
 
@@ -151,7 +151,7 @@ class PhoneTopUpServiceImplTest {
         assertThat(savedCard.getUpdatedAt()).isNotNull();
         assertThat(savedCard.getUpdatedAt()).isAfterOrEqualTo(oldUpdatedAt);
 
-        // then: транзакция сохранилась с нужными полями
+        // транзакция сохранилась с нужными полями
         verify(transactionRepository).save(txCaptor.capture());
         TransactionEntity savedTx = txCaptor.getValue();
 

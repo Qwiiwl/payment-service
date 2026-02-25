@@ -29,4 +29,7 @@ public class UserEntity {
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(nullable = false, unique = true)
+    private String email;
 }

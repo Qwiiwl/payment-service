@@ -36,6 +36,8 @@ spring:
       group-id: payment-service-group
       auto-offset-reset: earliest
 
+
+
 management:
   endpoints:
     web:
@@ -43,9 +45,6 @@ management:
         include: health,info,metrics,loggers
 
 
-notification:
-  baseUrl: http://217.29.121.129:80
-  timeoutMs: 3000
 
 
 logging:
@@ -54,5 +53,12 @@ logging:
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.springframework.kafka: INFO
+
+
+notification:
+  base-url: "http://217.29.121.129/notification_api"
+  username: "uzumtechservices"      # сюда merchantId или login из регистрации
+  password: "mtzmmzvhotetyza0oc"   # пароль из регистрации
+  timeout-ms: 5000
 
 

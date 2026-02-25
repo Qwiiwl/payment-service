@@ -2,8 +2,7 @@ package uzumtech.paymentservice.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 
-public record UserLoginRequest(
+public record UserOtpConfirmRequest(
         @NotBlank String phoneNumber,
-        @NotBlank String password,
-        @NotBlank String email
+        @NotBlank String code
 ) {}

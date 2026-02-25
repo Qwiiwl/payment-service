@@ -97,7 +97,7 @@ class TransferServiceImplTest {
         // toCard: 10 + 50 = 60
         assertThat(toCard.getBalance()).isEqualByComparingTo(new BigDecimal("60"));
 
-        // save вызывается: HOLD (fromCard), потом fromCard и toCard
+        // HOLD (fromCard), потом fromCard и toCard
         verify(cardRepository, atLeast(3)).save(any(CardEntity.class));
     }
 
@@ -148,7 +148,7 @@ class TransferServiceImplTest {
         verify(transactionStatusService).markFailed(eq(txId), contains("Insufficient funds"));
         verify(transactionStatusService, never()).markSuccess(any());
 
-        // денег не хватило => никакие save по картам не должны происходить
+        // денег не хватило никакие save по картам не должны происходить
         verify(cardRepository, never()).save(any());
     }
 }

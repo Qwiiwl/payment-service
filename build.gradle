@@ -21,11 +21,14 @@ repositories {
 ext {
     mapstructVersion = "1.5.5.Final"
     lombokMapstructBindingVersion = "0.2.0"
+    testcontainersVersion = "1.20.4"
+    mockitoVersion = "5.12.0"
+    h2Version = "2.2.224"
 }
 
 dependencies {
 
-    //Spring Boot
+    // Spring Boot
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -33,39 +36,42 @@ dependencies {
     implementation 'org.springframework.kafka:spring-kafka'
     implementation 'org.springframework.boot:spring-boot-starter-security'
 
-    //Database
+    // Database
     runtimeOnly 'org.postgresql:postgresql'
 
-    //JSON
+    // JSON
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
-    //Lombok
+    // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
-    //MapStruct
+    // MapStruct
     implementation "org.mapstruct:mapstruct:${mapstructVersion}"
     annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
     annotationProcessor "org.projectlombok:lombok-mapstruct-binding:${lombokMapstructBindingVersion}"
 
-    //Testing
-    testImplementation('org.springframework.boot:spring-boot-starter-test') {
-        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
-    }
+    // Testing (Spring test already включает JUnit5 + AssertJ + Mockito core)
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 
-    testImplementation 'org.testcontainers:junit-jupiter'
-    testImplementation 'org.testcontainers:postgresql'
-    testImplementation 'com.h2database:h2:2.2.222'
-    testImplementation 'org.springframework.kafka:spring-kafka-test'  // Embedded Kafka
+    // Mockito JUnit5 extension (можно и без версии, но оставим твою)
+    testImplementation "org.mockito:mockito-junit-jupiter:${mockitoVersion}"
 
-    //Integration Tests
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'       // JUnit 5
-    testImplementation 'org.assertj:assertj-core:3.24.2'              // AssertJ для assertThat
+    // H2 ДЛЯ ТЕСТОВ (ВАЖНО: именно testRuntimeOnly, чтобы точно был org.h2.Driver)
+    testRuntimeOnly "com.h2database:h2:${h2Version}"
+
+    // Testcontainers (Postgres)
+    testImplementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
+    testImplementation "org.testcontainers:junit-jupiter"
+    testImplementation "org.testcontainers:postgresql"
+
+    // Kafka tests (embedded)
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
+
+    // For test discovery (ok)
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-
-
 }
+
 tasks.named('test') {
     useJUnitPlatform()
     maxParallelForks = 1

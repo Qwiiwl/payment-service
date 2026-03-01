@@ -47,14 +47,12 @@ class OtpServiceImplTest {
 
     @Test
     void createAndSendOtp_emailChannel_sendsEmailAndSavesOtp() {
-        // given
         Long userId = 1L;
         String email = "test@mail.com";
 
-        // when
         otpService.createAndSendOtp(userId, null, null, email);
 
-        // then: ушёл запрос в notificationAdapter
+        // запрос уходит в нотификейшн
         verify(notificationAdapter).send(requestCaptor.capture());
         NotificationSendRequest req = requestCaptor.getValue();
 
@@ -63,7 +61,6 @@ class OtpServiceImplTest {
         assertEquals(email, req.receiver().email());
         assertNull(req.receiver().phone());
 
-        // и OTP сохранился
         verify(otpRepository).save(otpCaptor.capture());
         OtpEntity saved = otpCaptor.getValue();
 

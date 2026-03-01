@@ -29,7 +29,7 @@ public class CardServiceImpl implements CardService {
     private final CardRepository cardRepository;
     private final OtpRepository otpRepository;
 
-    //OTP на email
+    //отп на мыло
     private final UserRepository userRepository;
     private final OtpService otpService;
 

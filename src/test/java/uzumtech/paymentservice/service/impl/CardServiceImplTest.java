@@ -13,11 +13,16 @@ import uzumtech.paymentservice.dto.response.CardAddResponse;
 import uzumtech.paymentservice.dto.response.CardConfirmResponse;
 import uzumtech.paymentservice.entity.CardEntity;
 import uzumtech.paymentservice.entity.OtpEntity;
+import uzumtech.paymentservice.entity.UserEntity;
 import uzumtech.paymentservice.exception.CardAlreadyExistsException;
 import uzumtech.paymentservice.exception.InvalidOtpException;
 import uzumtech.paymentservice.exception.OtpExpiredException;
+import uzumtech.paymentservice.mapper.CardMapper;
 import uzumtech.paymentservice.repository.CardRepository;
 import uzumtech.paymentservice.repository.OtpRepository;
+import uzumtech.paymentservice.repository.UserRepository;
+import uzumtech.paymentservice.service.OtpService;
+import uzumtech.paymentservice.service.tx.CardTxService;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -30,181 +35,197 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class CardServiceImplTest {
 
-    @Mock
-    CardRepository cardRepository;
+    @Mock CardRepository cardRepository;
+    @Mock OtpRepository otpRepository;
 
-    @Mock
-    OtpRepository otpRepository;
+    @Mock UserRepository userRepository;
+    @Mock OtpService otpService;
 
-    @InjectMocks
-    CardServiceImpl cardService;
+    @Mock CardTxService cardTxService;
+    @Mock CardMapper cardMapper;
 
-    @Captor
-    ArgumentCaptor<OtpEntity> otpCaptor;
+    @InjectMocks CardServiceImpl cardService;
 
-    @Captor
-    ArgumentCaptor<CardEntity> cardCaptor;
+    @Captor ArgumentCaptor<Long> userIdCaptor;
+    @Captor ArgumentCaptor<String> cardNumberCaptor;
+    @Captor ArgumentCaptor<String> emailCaptor;
+    @Captor ArgumentCaptor<OtpEntity> otpCaptor;
+    @Captor ArgumentCaptor<CardEntity> cardCaptor;
 
     @BeforeEach
     void setup() {
-        // по умолчанию save возвращает то, что сохранили
-        lenient().when(otpRepository.save(any(OtpEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(cardRepository.save(any(CardEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(cardTxService.createCardAndMarkOtpUsed(any(CardEntity.class), any(OtpEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+    }
+
+
+    @Test
+    void initiateCardAdding_whenCardAlreadyExists_throwsCardAlreadyExists() {
+        when(cardRepository.findByCardNumber("8600123412341234"))
+                .thenReturn(Optional.of(new CardEntity()));
+
+        assertThatThrownBy(() -> cardService.initiateCardAdding(
+                new CardAddRequest(10L, "8600123412341234")
+        ))
+                .isInstanceOf(CardAlreadyExistsException.class)
+                .hasMessageContaining("Card already exists");
+
+        verifyNoInteractions(userRepository, otpService);
     }
 
     @Test
-    void initiateCardAdding_savesOtpAndReturnsOtpSent() {
-        // given
-        CardAddRequest request = new CardAddRequest(10L, "8600123412341234");
+    void initiateCardAdding_whenUserNotFound_throwsIllegalArgument() {
+        when(cardRepository.findByCardNumber("8600123412341234"))
+                .thenReturn(Optional.empty());
+        when(userRepository.findById(10L)).thenReturn(Optional.empty());
 
-        // when
-        CardAddResponse response = cardService.initiateCardAdding(request);
+        assertThatThrownBy(() -> cardService.initiateCardAdding(
+                new CardAddRequest(10L, "8600123412341234")
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("User not found");
 
-        // then
-        assertThat(response).isNotNull();
-        assertThat(response.message()).isEqualTo("OTP_SENT");
-
-        verify(otpRepository).save(otpCaptor.capture());
-        OtpEntity saved = otpCaptor.getValue();
-
-        assertThat(saved.getUserId()).isEqualTo(10L);
-        assertThat(saved.getCardNumber()).isEqualTo("8600123412341234");
-        assertThat(saved.getStatus()).isEqualTo(OtpStatus.ACTIVE);
-
-        assertThat(saved.getCode()).matches("\\d{6}");
-        assertThat(saved.getCreatedAt()).isNotNull();
-        assertThat(saved.getExpireAt()).isNotNull();
-        assertThat(saved.getExpireAt()).isAfter(saved.getCreatedAt());
+        verifyNoInteractions(otpService);
     }
+
+    @Test
+    void initiateCardAdding_happyPath_callsOtpService_returnsMessage() {
+        when(cardRepository.findByCardNumber("8600123412341234"))
+                .thenReturn(Optional.empty());
+
+        UserEntity user = new UserEntity();
+        user.setId(10L);
+        user.setEmail("test@mail.com");
+        when(userRepository.findById(10L)).thenReturn(Optional.of(user));
+
+        CardAddResponse response = cardService.initiateCardAdding(
+                new CardAddRequest(10L, "8600123412341234")
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.message()).isEqualTo("OTP sent to email for card adding");
+
+        verify(otpService).createAndSendOtp(
+                userIdCaptor.capture(),
+                cardNumberCaptor.capture(),
+                isNull(),
+                emailCaptor.capture()
+        );
+
+        assertThat(userIdCaptor.getValue()).isEqualTo(10L);
+        assertThat(cardNumberCaptor.getValue()).isEqualTo("8600123412341234");
+        assertThat(emailCaptor.getValue()).isEqualTo("test@mail.com");
+
+        verify(otpRepository, never()).save(any());
+    }
+
 
     @Test
     void confirmCardAdding_whenOtpNotFound_throwsInvalidOtp() {
-        // given
-        CardConfirmRequest request = new CardConfirmRequest(10L, "8600123412341234", "123456");
         when(otpRepository.findTopByUserIdAndCardNumberAndStatusOrderByCreatedAtDesc(
                 10L, "8600123412341234", OtpStatus.ACTIVE
         )).thenReturn(Optional.empty());
 
-        // when + then
-        assertThatThrownBy(() -> cardService.confirmCardAdding(request))
+        assertThatThrownBy(() -> cardService.confirmCardAdding(
+                new CardConfirmRequest(10L, "8600123412341234", "123456")
+        ))
                 .isInstanceOf(InvalidOtpException.class)
                 .hasMessageContaining("OTP not found");
 
-        verify(cardRepository, never()).save(any());
-        verify(otpRepository, never()).save(any()); // кроме find ничего не сохраняем
+        verifyNoInteractions(cardTxService, cardMapper);
     }
 
     @Test
-    void confirmCardAdding_whenOtpExpired_marksExpiredAndThrows() {
-        // given
-        OtpEntity otp = OtpEntity.builder()
-                .id(1L)
-                .userId(10L)
-                .cardNumber("8600123412341234")
-                .code("123456")
-                .status(OtpStatus.ACTIVE)
-                .createdAt(LocalDateTime.now().minusMinutes(10))
-                .expireAt(LocalDateTime.now().minusMinutes(1)) // уже истёк
-                .build();
+    void confirmCardAdding_whenOtpExpired_marksExpired_viaTxService_andThrows() {
+        OtpEntity otp = new OtpEntity();
+        otp.setId(1L);
+        otp.setUserId(10L);
+        otp.setCardNumber("8600123412341234");
+        otp.setCode("123456");
+        otp.setStatus(OtpStatus.ACTIVE);
+        otp.setCreatedAt(LocalDateTime.now().minusMinutes(10));
+        otp.setExpireAt(LocalDateTime.now().minusMinutes(1)); // expired
 
         when(otpRepository.findTopByUserIdAndCardNumberAndStatusOrderByCreatedAtDesc(
                 10L, "8600123412341234", OtpStatus.ACTIVE
         )).thenReturn(Optional.of(otp));
 
-        CardConfirmRequest request = new CardConfirmRequest(10L, "8600123412341234", "123456");
-
-        // when + then
-        assertThatThrownBy(() -> cardService.confirmCardAdding(request))
+        assertThatThrownBy(() -> cardService.confirmCardAdding(
+                new CardConfirmRequest(10L, "8600123412341234", "123456")
+        ))
                 .isInstanceOf(OtpExpiredException.class)
                 .hasMessageContaining("OTP expired");
 
-        // должен поменять статус на EXPIRED и сохранить
-        verify(otpRepository, atLeastOnce()).save(otpCaptor.capture());
-        assertThat(otpCaptor.getAllValues())
-                .anySatisfy(saved -> assertThat(saved.getStatus()).isEqualTo(OtpStatus.EXPIRED));
+        verify(cardTxService).markOtpExpired(otpCaptor.capture());
+        assertThat(otpCaptor.getValue().getStatus()).isEqualTo(OtpStatus.EXPIRED);
 
-        verify(cardRepository, never()).save(any());
+        verify(cardMapper, never()).newActiveCard(anyString(), any());
+        verify(cardTxService, never()).createCardAndMarkOtpUsed(any(), any());
     }
 
     @Test
-    void confirmCardAdding_whenOtpCodeWrong_throwsInvalidOtp() {
-        // given
-        OtpEntity otp = OtpEntity.builder()
-                .id(1L)
-                .userId(10L)
-                .cardNumber("8600123412341234")
-                .code("111111")
-                .status(OtpStatus.ACTIVE)
-                .createdAt(LocalDateTime.now().minusMinutes(1))
-                .expireAt(LocalDateTime.now().plusMinutes(1))
-                .build();
+    void confirmCardAdding_whenOtpCodeWrong_throwsInvalidOtp_andDoesNotTouchTx() {
+        OtpEntity otp = new OtpEntity();
+        otp.setId(1L);
+        otp.setUserId(10L);
+        otp.setCardNumber("8600123412341234");
+        otp.setCode("111111");
+        otp.setStatus(OtpStatus.ACTIVE);
+        otp.setCreatedAt(LocalDateTime.now().minusMinutes(1));
+        otp.setExpireAt(LocalDateTime.now().plusMinutes(1));
 
         when(otpRepository.findTopByUserIdAndCardNumberAndStatusOrderByCreatedAtDesc(
                 10L, "8600123412341234", OtpStatus.ACTIVE
         )).thenReturn(Optional.of(otp));
 
-        CardConfirmRequest request = new CardConfirmRequest(10L, "8600123412341234", "222222");
-
-        // when + then
-        assertThatThrownBy(() -> cardService.confirmCardAdding(request))
+        assertThatThrownBy(() -> cardService.confirmCardAdding(
+                new CardConfirmRequest(10L, "8600123412341234", "222222")
+        ))
                 .isInstanceOf(InvalidOtpException.class)
                 .hasMessageContaining("Invalid OTP code");
 
-        verify(cardRepository, never()).save(any());
-        // статус USED/EXPIRED выставляться не должен
-        verify(otpRepository, never()).save(any(OtpEntity.class));
+        verifyNoInteractions(cardTxService, cardMapper);
+        assertThat(otp.getStatus()).isEqualTo(OtpStatus.ACTIVE);
     }
 
     @Test
     void confirmCardAdding_whenCardAlreadyExists_throwsCardAlreadyExists() {
-        // given
-        OtpEntity otp = OtpEntity.builder()
-                .id(1L)
-                .userId(10L)
-                .cardNumber("8600123412341234")
-                .code("123456")
-                .status(OtpStatus.ACTIVE)
-                .createdAt(LocalDateTime.now().minusMinutes(1))
-                .expireAt(LocalDateTime.now().plusMinutes(1))
-                .build();
+        OtpEntity otp = new OtpEntity();
+        otp.setId(1L);
+        otp.setUserId(10L);
+        otp.setCardNumber("8600123412341234");
+        otp.setCode("123456");
+        otp.setStatus(OtpStatus.ACTIVE);
+        otp.setCreatedAt(LocalDateTime.now().minusMinutes(1));
+        otp.setExpireAt(LocalDateTime.now().plusMinutes(1));
 
         when(otpRepository.findTopByUserIdAndCardNumberAndStatusOrderByCreatedAtDesc(
                 10L, "8600123412341234", OtpStatus.ACTIVE
         )).thenReturn(Optional.of(otp));
 
         when(cardRepository.findByCardNumber("8600123412341234"))
-                .thenReturn(Optional.of(CardEntity.builder()
-                        .id(99L)
-                        .cardNumber("8600123412341234")
-                        .balance(BigDecimal.ZERO)
-                        .status(CardStatus.ACTIVE)
-                        .createdAt(LocalDateTime.now())
-                        .updatedAt(LocalDateTime.now())
-                        .build()));
+                .thenReturn(Optional.of(new CardEntity()));
 
-        CardConfirmRequest request = new CardConfirmRequest(10L, "8600123412341234", "123456");
-
-        // when + then
-        assertThatThrownBy(() -> cardService.confirmCardAdding(request))
+        assertThatThrownBy(() -> cardService.confirmCardAdding(
+                new CardConfirmRequest(10L, "8600123412341234", "123456")
+        ))
                 .isInstanceOf(CardAlreadyExistsException.class)
                 .hasMessageContaining("Card already exists");
 
-        verify(cardRepository, never()).save(any());
-        verify(otpRepository, never()).save(any());
+        verifyNoInteractions(cardTxService, cardMapper);
+        assertThat(otp.getStatus()).isEqualTo(OtpStatus.ACTIVE);
     }
 
     @Test
-    void confirmCardAdding_happyPath_createsCard_andMarksOtpUsed() {
-        // given
-        OtpEntity otp = OtpEntity.builder()
-                .id(1L)
-                .userId(10L)
-                .cardNumber("8600123412341234")
-                .code("123456")
-                .status(OtpStatus.ACTIVE)
-                .createdAt(LocalDateTime.now().minusMinutes(1))
-                .expireAt(LocalDateTime.now().plusMinutes(1))
-                .build();
+    void confirmCardAdding_happyPath_createsCard_marksOtpUsed_returnsMappedResponse() {
+        OtpEntity otp = new OtpEntity();
+        otp.setId(1L);
+        otp.setUserId(10L);
+        otp.setCardNumber("8600123412341234");
+        otp.setCode("123456");
+        otp.setStatus(OtpStatus.ACTIVE);
+        otp.setCreatedAt(LocalDateTime.now().minusMinutes(1));
+        otp.setExpireAt(LocalDateTime.now().plusMinutes(1));
 
         when(otpRepository.findTopByUserIdAndCardNumberAndStatusOrderByCreatedAtDesc(
                 10L, "8600123412341234", OtpStatus.ACTIVE
@@ -212,25 +233,54 @@ class CardServiceImplTest {
 
         when(cardRepository.findByCardNumber("8600123412341234")).thenReturn(Optional.empty());
 
-        // when
+        LocalDateTime now = LocalDateTime.now();
+        CardEntity newCard = new CardEntity();
+        newCard.setCardNumber("8600123412341234");
+        newCard.setBalance(BigDecimal.ZERO);
+        newCard.setReservedBalance(BigDecimal.ZERO);
+        newCard.setStatus(CardStatus.ACTIVE);
+        newCard.setCreatedAt(now);
+        newCard.setUpdatedAt(now);
+
+        when(cardMapper.newActiveCard(eq("8600123412341234"), any(LocalDateTime.class)))
+                .thenReturn(newCard);
+
+        CardEntity savedCard = new CardEntity();
+        savedCard.setId(100L);
+        savedCard.setCardNumber("8600123412341234");
+        savedCard.setBalance(BigDecimal.ZERO);
+        savedCard.setReservedBalance(BigDecimal.ZERO);
+        savedCard.setStatus(CardStatus.ACTIVE);
+        savedCard.setCreatedAt(now);
+        savedCard.setUpdatedAt(now);
+
+        when(cardTxService.createCardAndMarkOtpUsed(any(CardEntity.class), any(OtpEntity.class)))
+                .thenReturn(savedCard);
+
+        CardConfirmResponse mapped = new CardConfirmResponse(
+                "8600123412341234",
+                CardStatus.ACTIVE.name(),
+                now
+        );
+        when(cardMapper.toConfirmResponse(savedCard)).thenReturn(mapped);
+
         CardConfirmResponse response = cardService.confirmCardAdding(
                 new CardConfirmRequest(10L, "8600123412341234", "123456")
         );
 
-        // then
         assertThat(response).isNotNull();
         assertThat(response.cardNumber()).isEqualTo("8600123412341234");
         assertThat(response.status()).isEqualTo(CardStatus.ACTIVE.name());
-        assertThat(response.createdAt()).isNotNull();
+        assertThat(response.createdAt()).isEqualTo(now);
 
-        verify(cardRepository).save(cardCaptor.capture());
-        CardEntity savedCard = cardCaptor.getValue();
-        assertThat(savedCard.getCardNumber()).isEqualTo("8600123412341234");
-        assertThat(savedCard.getBalance()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(savedCard.getStatus()).isEqualTo(CardStatus.ACTIVE);
+        assertThat(otp.getStatus()).isEqualTo(OtpStatus.USED);
 
-        // OTP должен стать USED и сохраниться
-        verify(otpRepository).save(otpCaptor.capture());
-        assertThat(otpCaptor.getValue().getStatus()).isEqualTo(OtpStatus.USED);
+        verify(cardMapper).newActiveCard(eq("8600123412341234"), any(LocalDateTime.class));
+        verify(cardTxService).createCardAndMarkOtpUsed(cardCaptor.capture(), otpCaptor.capture());
+        assertThat(cardCaptor.getValue()).isSameAs(newCard);
+        assertThat(otpCaptor.getValue()).isSameAs(otp);
+        verify(cardMapper).toConfirmResponse(savedCard);
+
+        verify(cardTxService, never()).markOtpExpired(any());
     }
 }

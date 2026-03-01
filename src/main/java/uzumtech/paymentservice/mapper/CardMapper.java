@@ -20,7 +20,7 @@ public interface CardMapper {
     @Mapping(target = "updatedAt", source = "now")
     CardEntity newActiveCard(String cardNumber, LocalDateTime now);
 
-    // Entity -> Response
+    // ентити-респонс
     @Mapping(target = "status", expression = "java(card.getStatus().name())")
     CardConfirmResponse toConfirmResponse(CardEntity card);
 

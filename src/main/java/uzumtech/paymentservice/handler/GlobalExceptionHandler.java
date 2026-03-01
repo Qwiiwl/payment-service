@@ -50,7 +50,7 @@ public class GlobalExceptionHandler {
         return buildResponse("FINE_ALREADY_PAID", ex.getMessage(), HttpStatus.BAD_REQUEST, req, null);
     }
 
-    // OTP
+    // отп
 
     @ExceptionHandler(InvalidOtpException.class)
     public ResponseEntity<ErrorResponse> handleInvalidOtp(InvalidOtpException ex, HttpServletRequest req) {

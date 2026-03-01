@@ -11,7 +11,7 @@ import java.util.UUID;
 @Mapper(componentModel = "spring")
 public interface TransferMapper {
 
-    // txId + входные данные -> response
+    // тхИД + входные данные -> респонс
     @Mapping(target = "transactionId", source = "txId")
     @Mapping(target = "fromCard", source = "fromCard")
     @Mapping(target = "toCard", source = "toCard")

@@ -25,7 +25,7 @@ public class NotificationClientConfig {
                 .baseUrl(baseUrl)
                 .requestFactory(factory);
 
-        // Подключаем BasicAuth
+        // Подключаем бейзикАуз
         if (username != null && !username.isBlank()
                 && password != null && !password.isBlank()) {
 

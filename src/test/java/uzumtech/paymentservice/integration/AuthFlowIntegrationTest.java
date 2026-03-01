@@ -55,7 +55,7 @@ class AuthFlowIntegrationTest extends IntegrationTestBase {
         assertNotNull(sent);
         assertTrue(sent.message().toLowerCase().contains("otp"));
 
-        // OTP должен появиться в БД
+        // отп должен появиться в БД
         Long userId = userRepository.findByPhoneNumber(phone).orElseThrow().getId();
 
         Optional<OtpEntity> opt = otpRepository
@@ -65,12 +65,10 @@ class AuthFlowIntegrationTest extends IntegrationTestBase {
         OtpEntity otp = opt.get();
         assertNotNull(otp.getCode());
 
-        // confirm
         UserResponse resp = userService.confirmOtp(new UserOtpConfirmRequest(phone, otp.getCode()));
         assertNotNull(resp);
         assertEquals(phone, resp.phoneNumber());
 
-        // OTP стал USED
         OtpEntity updated = otpRepository.findById(otp.getId()).orElseThrow();
         assertEquals(OtpStatus.USED, updated.getStatus());
     }

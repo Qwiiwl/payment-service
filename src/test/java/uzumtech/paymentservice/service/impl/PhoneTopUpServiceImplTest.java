@@ -17,11 +17,12 @@ import uzumtech.paymentservice.exception.CardInactiveException;
 import uzumtech.paymentservice.exception.CardNotFoundException;
 import uzumtech.paymentservice.exception.InsufficientFundsException;
 import uzumtech.paymentservice.repository.CardRepository;
-import uzumtech.paymentservice.repository.TransactionRepository;
+import uzumtech.paymentservice.service.tx.PhoneTopUpTxService;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -30,149 +31,125 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PhoneTopUpServiceImplTest {
 
-    @Mock
-    CardRepository cardRepository;
+    @Mock CardRepository cardRepository;
+    @Mock KafkaTemplate<String, TransactionEvent> kafkaTemplate;
 
-    @Mock
-    TransactionRepository transactionRepository;
+    @Mock PhoneTopUpTxService phoneTopUpTxService;
 
-    @Mock
-    KafkaTemplate<String, TransactionEvent> kafkaTemplate; // в текущей версии сервиса не используется
+    @InjectMocks PhoneTopUpServiceImpl phoneTopUpService;
 
-    @InjectMocks
-    PhoneTopUpServiceImpl phoneTopUpService;
-
-    @Captor
-    ArgumentCaptor<CardEntity> cardCaptor;
-
-    @Captor
-    ArgumentCaptor<TransactionEntity> txCaptor;
+    @Captor ArgumentCaptor<CardEntity> cardCaptor;
+    @Captor ArgumentCaptor<String> phoneCaptor;
+    @Captor ArgumentCaptor<BigDecimal> amountCaptor;
 
     @Test
     void topUp_whenCardNotFound_throwsCardNotFound() {
-        // given
         PhoneTopUpRequest request = new PhoneTopUpRequest("8600", "+998901234567", new BigDecimal("10.00"));
         when(cardRepository.findByCardNumber("8600")).thenReturn(Optional.empty());
 
-        // when + then
         assertThatThrownBy(() -> phoneTopUpService.topUp(request))
                 .isInstanceOf(CardNotFoundException.class)
                 .hasMessageContaining("Card not found");
 
-        verify(transactionRepository, never()).save(any());
-        verify(cardRepository, never()).save(any());
+        verifyNoInteractions(phoneTopUpTxService);
         verifyNoInteractions(kafkaTemplate);
     }
 
     @Test
     void topUp_whenCardInactive_throwsCardInactive() {
-        // given
         CardEntity card = CardEntity.builder()
                 .id(1L)
                 .cardNumber("8600")
                 .balance(new BigDecimal("100.00"))
-                .status(CardStatus.BLOCKED) // не ACTIVE
+                .status(CardStatus.BLOCKED)
+                .reservedBalance(BigDecimal.ZERO)
                 .createdAt(LocalDateTime.now().minusDays(1))
                 .updatedAt(LocalDateTime.now().minusDays(1))
-                .reservedBalance(BigDecimal.ZERO)
                 .build();
 
         PhoneTopUpRequest request = new PhoneTopUpRequest("8600", "+998901234567", new BigDecimal("10.00"));
         when(cardRepository.findByCardNumber("8600")).thenReturn(Optional.of(card));
 
-        // when + then
         assertThatThrownBy(() -> phoneTopUpService.topUp(request))
                 .isInstanceOf(CardInactiveException.class)
                 .hasMessageContaining("Card is not active");
 
-        verify(cardRepository, never()).save(any());
-        verify(transactionRepository, never()).save(any());
+        verifyNoInteractions(phoneTopUpTxService);
         verifyNoInteractions(kafkaTemplate);
     }
 
     @Test
     void topUp_whenInsufficientFunds_throwsInsufficientFunds() {
-        // given
         CardEntity card = CardEntity.builder()
                 .id(1L)
                 .cardNumber("8600")
                 .balance(new BigDecimal("5.00"))
                 .status(CardStatus.ACTIVE)
+                .reservedBalance(BigDecimal.ZERO)
                 .createdAt(LocalDateTime.now().minusDays(1))
                 .updatedAt(LocalDateTime.now().minusDays(1))
-                .reservedBalance(BigDecimal.ZERO)
                 .build();
 
         PhoneTopUpRequest request = new PhoneTopUpRequest("8600", "+998901234567", new BigDecimal("10.00"));
         when(cardRepository.findByCardNumber("8600")).thenReturn(Optional.of(card));
 
-        // when + then
         assertThatThrownBy(() -> phoneTopUpService.topUp(request))
                 .isInstanceOf(InsufficientFundsException.class)
                 .hasMessageContaining("Insufficient funds on card");
 
-        // состояние не меняем и ничего не сохраняем
-        assertThat(card.getBalance()).isEqualByComparingTo("5.00");
-        verify(cardRepository, never()).save(any());
-        verify(transactionRepository, never()).save(any());
+        // сервис не должен трогать тхсервис, иначе падаем
+        verifyNoInteractions(phoneTopUpTxService);
         verifyNoInteractions(kafkaTemplate);
     }
 
     @Test
-    void topUp_happyPath_decreasesBalance_savesCardAndTransaction_returnsResponse() {
-        // given
-        LocalDateTime oldUpdatedAt = LocalDateTime.now().minusDays(1);
-
+    void topUp_happyPath_callsTxService_andReturnsResponseFromTransaction() {
         CardEntity card = CardEntity.builder()
                 .id(1L)
                 .cardNumber("8600")
                 .balance(new BigDecimal("100.00"))
                 .status(CardStatus.ACTIVE)
-                .createdAt(LocalDateTime.now().minusDays(10))
-                .updatedAt(oldUpdatedAt)
                 .reservedBalance(BigDecimal.ZERO)
+                .createdAt(LocalDateTime.now().minusDays(10))
+                .updatedAt(LocalDateTime.now().minusDays(1))
                 .build();
 
         PhoneTopUpRequest request = new PhoneTopUpRequest("8600", "+998901234567", new BigDecimal("10.00"));
-
         when(cardRepository.findByCardNumber("8600")).thenReturn(Optional.of(card));
-        when(cardRepository.save(any(CardEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(transactionRepository.save(any(TransactionEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // when
+        UUID txId = UUID.randomUUID();
+        LocalDateTime createdAt = LocalDateTime.now();
+
+        TransactionEntity tx = new TransactionEntity();
+        tx.setTransactionId(txId);
+        tx.setType(TransactionType.PHONE_TOPUP);
+        tx.setSourceIdentifier("8600");
+        tx.setDestinationIdentifier("+998901234567");
+        tx.setAmount(new BigDecimal("10.00"));
+        tx.setStatus(TransactionStatus.SUCCESS);
+        tx.setCreatedAt(createdAt);
+        tx.setUpdatedAt(createdAt);
+
+        when(phoneTopUpTxService.applyTopUp(any(CardEntity.class), anyString(), any(BigDecimal.class)))
+                .thenReturn(tx);
+
         PhoneTopUpResponse response = phoneTopUpService.topUp(request);
 
-        // карта сохранилась с новым балансом
-        verify(cardRepository).save(cardCaptor.capture());
-        CardEntity savedCard = cardCaptor.getValue();
+        // проверим аргументы вызова
+        verify(phoneTopUpTxService).applyTopUp(cardCaptor.capture(), phoneCaptor.capture(), amountCaptor.capture());
+        assertThat(cardCaptor.getValue()).isSameAs(card);
+        assertThat(phoneCaptor.getValue()).isEqualTo("+998901234567");
+        assertThat(amountCaptor.getValue()).isEqualByComparingTo("10.00");
 
-        assertThat(savedCard.getCardNumber()).isEqualTo("8600");
-        assertThat(savedCard.getBalance()).isEqualByComparingTo("90.00");
-        assertThat(savedCard.getUpdatedAt()).isNotNull();
-        assertThat(savedCard.getUpdatedAt()).isAfterOrEqualTo(oldUpdatedAt);
-
-        // транзакция сохранилась с нужными полями
-        verify(transactionRepository).save(txCaptor.capture());
-        TransactionEntity savedTx = txCaptor.getValue();
-
-        assertThat(savedTx.getTransactionId()).isNotNull();
-        assertThat(savedTx.getType()).isEqualTo(TransactionType.PHONE_TOPUP);
-        assertThat(savedTx.getSourceIdentifier()).isEqualTo("8600");
-        assertThat(savedTx.getDestinationIdentifier()).isEqualTo("+998901234567");
-        assertThat(savedTx.getAmount()).isEqualByComparingTo("10.00");
-        assertThat(savedTx.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
-        assertThat(savedTx.getCreatedAt()).isNotNull();
-
-        // then: response совпадает с транзакцией
+        // респонс
         assertThat(response).isNotNull();
-        assertThat(response.transactionId()).isEqualTo(savedTx.getTransactionId());
+        assertThat(response.transactionId()).isEqualTo(txId);
         assertThat(response.fromCard()).isEqualTo("8600");
         assertThat(response.phoneNumber()).isEqualTo("+998901234567");
         assertThat(response.amount()).isEqualByComparingTo("10.00");
         assertThat(response.status()).isEqualTo(TransactionStatus.SUCCESS.name());
-        assertThat(response.createdAt()).isEqualTo(savedTx.getCreatedAt());
+        assertThat(response.createdAt()).isEqualTo(createdAt);
 
-        // Kafka сейчас не используется — проверим, что туда не лезем
         verifyNoInteractions(kafkaTemplate);
     }
 }
